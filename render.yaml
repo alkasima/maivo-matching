@@ -1,0 +1,21 @@
+services:
+  - name: laravel-app
+    type: web
+    env: docker
+    plan: free
+    repo: https://github.com/alkasima/maivo-matching
+    buildCommand: composer install && php artisan migrate --force
+    startCommand: php artisan serve --host 0.0.0.0 --port 10000
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_KEY
+        value: base64:your-generated-key
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        value: https://your-app.onrender.com
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        value: postgresql://mavio:1FqsmLkX9N5Yl91Bi6HcnQJt5iY55pMD@dpg-cv8pb8q3esus73dht9jg-a.oregon-postgres.render.com/mavio
