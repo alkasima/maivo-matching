@@ -46,4 +46,10 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
         ];
     }
+
+    public function isOwner()
+    {
+        // Check if this user is an owner
+        return $this->type === 'owner';
+    }
 }

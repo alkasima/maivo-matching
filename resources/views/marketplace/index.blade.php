@@ -65,15 +65,12 @@
         <p class="match-description">Let our AI find the best service providers based on your needs and preferences</p>
         
         <!-- This container will show the top 3 matches -->
-        <div id="top-matches-container" class="top-matches-container mt-4 d-none">
-            <h4 class="mb-3">Top 3 Matches for You</h4>
-            <div id="top-matches" class="row g-4">
-                <!-- Matches will be loaded here -->
+        <div id="top-matches-container" class="top-matches-container d-none">
+            <div class="text-center mb-4">
+                <h4>AI Matched Contractors</h4>
             </div>
-            <div class="text-center mt-3">
-                <a href="{{ route('marketplace.match') }}" class="btn btn-outline-primary">
-                    See All Matches
-                </a>
+            <div id="top-matches" class="row g-4">
+                <!-- AI matches will be inserted here -->
             </div>
         </div>
     </div>
@@ -161,14 +158,17 @@
         @endforelse
     </div>
 
-    <!-- Pagination -->
+    <!-- Replace the pagination section with this Load More button -->
     @if($contractors->hasPages())
-        <div class="d-flex justify-content-center mt-4">
-            <nav>
-                <ul class="pagination">
-                    {{ $contractors->links() }}
-                </ul>
-            </nav>
+        <div class="d-flex justify-content-center mt-4 mb-5">
+            <button id="load-more-btn" class="btn btn-primary btn-lg px-4 py-2" 
+                    data-current-page="{{ $contractors->currentPage() }}" 
+                    data-last-page="{{ $contractors->lastPage() }}">
+                <span>Load More Contractors</span>
+                <div class="spinner-border spinner-border-sm ms-2 d-none" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </button>
         </div>
     @endif
 </div>
@@ -215,8 +215,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     needs: ownerNeeds
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('AI Match Response:', data);
+                
                 // Hide modal
                 needsModal.hide();
                 
@@ -225,31 +232,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 findMatchesBtn.disabled = false;
                 
                 // Clear previous matches
-                topMatches.innerHTML = '';
+                if (topMatches) {
+                    topMatches.innerHTML = '';
+                } else {
+                    console.error("topMatches element not found");
+                    return;
+                }
                 
                 if (data.matches && data.matches.length > 0) {
                     // Hide the regular contractors grid when we have matches
-                    contractorsGrid.style.display = 'none';
+                    if (contractorsGrid) {
+                        contractorsGrid.style.display = 'none';
+                    }
                     
-                    // Add a "Show All Contractors" button at the top of matches
-                    topMatchesContainer.querySelector('.text-center').innerHTML = `
-                        <a href="#" id="show-all-contractors" class="btn btn-outline-primary">
-                            Show All Contractors
-                        </a>
-                    `;
+                    // Update the header
+                    const headerDiv = topMatchesContainer.querySelector('.text-center');
+                    if (headerDiv) {
+                        headerDiv.innerHTML = `
+                            <h4 class="mb-3">AI Matched Contractors</h4>
+                            <p class="text-muted mb-4">Based on your search: "${document.getElementById('owner-needs').value}"</p>
+                            <a href="#" id="show-all-contractors" class="btn btn-outline-primary mb-4">
+                                Back to All Contractors
+                            </a>
+                        `;
+                    }
+                    
+                    // Create a row for matches if needed
+                    if (!topMatches.classList.contains('row')) {
+                        topMatches.className = 'row g-4';
+                    }
                     
                     // Attach event listener to the new button
-                    document.getElementById('show-all-contractors').addEventListener('click', function(e) {
-                        e.preventDefault();
-                        // Show the regular contractors grid
-                        contractorsGrid.style.display = 'flex';
-                        // Hide the matches container
-                        topMatchesContainer.classList.add('d-none');
-                    });
+                    const showAllButton = document.getElementById('show-all-contractors');
+                    if (showAllButton) {
+                        showAllButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            // Show the regular contractors grid
+                            if (contractorsGrid) {
+                                contractorsGrid.style.display = 'flex';
+                            }
+                            // Hide the matches container
+                            topMatchesContainer.style.display = 'none';
+                        });
+                    }
                     
+                    // Add match cards
                     data.matches.forEach((match, index) => {
-                        console.log(`Match ${index}: `, match);
-                        console.log(`Contractor ${index} details: `, match.contractor);
                         const contractor = match.contractor;
                         const matchScore = match.match_score || 0;
                         
@@ -259,81 +287,171 @@ document.addEventListener('DOMContentLoaded', function() {
                             return;
                         }
                         
-                        // Restore the nice UI but with safety checks
-                        topMatches.innerHTML += `
-                            <div class="col-lg-4 col-md-6">
-                                <div class="card contractor-card h-100 match-card">
-                                    <div class="match-score-badge">${matchScore}% Match</div>
-                                    <div class="card-body">
-                                        <div class="d-flex mb-3">
-                                            <div class="contractor-avatar me-3">
-                                                <div class="placeholder-avatar rounded-circle">${contractor.first_name.charAt(0).toUpperCase()}</div>
-                                            </div>
-                                            <div>
-                                                <h5 class="mb-1">${contractor.first_name} ${contractor.last_name || ''}</h5>
-                                                <p class="text-muted mb-1">${contractor.service_title || ''}</p>
-                                                <p class="text-muted mb-2">${contractor.company_name || ''}</p>
-                                            </div>
+                        const cardDiv = document.createElement('div');
+                        cardDiv.className = 'col-lg-4 col-md-6 mb-4 fade-in-card';
+                        cardDiv.innerHTML = `
+                            <div class="card contractor-card h-100 match-card">
+                                <div class="ai-powered-badge">
+                                    <i class="fas fa-robot"></i> AI Powered Match
+                                </div>
+                                <div class="match-score-badge">${matchScore}% Match</div>
+                                <div class="card-body">
+                                    <div class="d-flex mb-3">
+                                        <div class="contractor-avatar me-3">
+                                            <div class="placeholder-avatar rounded-circle">${contractor.first_name.charAt(0).toUpperCase()}</div>
                                         </div>
-                                        <div class="match-reason mb-3">
-                                            <strong>Why we matched:</strong> ${match.match_reason || 'Potential match for your needs'}
+                                        <div>
+                                            <h5 class="mb-1">${contractor.first_name} ${contractor.last_name || ''}</h5>
+                                            <p class="text-muted mb-1">${contractor.service_title || ''}</p>
+                                            <p class="text-muted mb-2">${contractor.company_name || ''}</p>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center mt-auto">
-                                            <a href="#" class="btn btn-sm btn-primary w-100">Contact Provider</a>
-                                        </div>
+                                    </div>
+                                    <div class="match-reason mb-3">
+                                        <strong>Why we matched:</strong> ${match.match_reason || 'Potential match for your needs'}
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                                        <a href="#" class="btn btn-sm btn-primary w-100">Contact Provider</a>
                                     </div>
                                 </div>
                             </div>
                         `;
+                        topMatches.appendChild(cardDiv);
                     });
-
-                    // Add right after the forEach loop ends
-                    console.log("After adding cards, topMatches HTML:", topMatches.innerHTML);
-                    console.log("Top matches container:", topMatchesContainer);
-                    console.log("topMatchesContainer classes:", topMatchesContainer.className);
-                    console.log("topMatchesContainer display style:", window.getComputedStyle(topMatchesContainer).display);
-                } else {
-                    // Make sure the contractors grid is visible when no matches
-                    contractorsGrid.style.display = 'flex';
                     
+                    topMatchesContainer.style.display = 'block !important';
+                    topMatchesContainer.style.visibility = 'visible';
+                    topMatchesContainer.style.opacity = '1';
+                    topMatchesContainer.classList.remove('d-none');
+                    
+                    contractorsGrid.style.display = 'flex';
+                
+                    void topMatchesContainer.offsetHeight;
+                    
+                    topMatchesContainer.scrollIntoView({behavior: 'smooth'});
+                } else {
+                    // Show "no matches" message
                     topMatches.innerHTML = `
                         <div class="col-12">
                             <div class="alert alert-info">
-                                No matches found for your description. Please try with different terms.
+                                <i class="fas fa-info-circle me-2"></i>
+                                No matches found for "${document.getElementById('owner-needs').value}" - please try a different search
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Show the container
+                    topMatchesContainer.style.display = 'block';
+                    topMatchesContainer.style.visibility = 'visible';
+                    topMatchesContainer.style.opacity = '1';
+                    topMatchesContainer.classList.remove('d-none');
+                    
+                    
+                    
+                }
+            })
+            .catch(error => {
+                console.error('Error with AI matching:', error);
+                alert('There was an error finding matches: ' + error.message);
+                
+                // Hide modal
+                needsModal.hide();
+                
+                // Reset button
+                findMatchesBtn.innerHTML = 'Find Matches';
+                findMatchesBtn.disabled = false;
+                
+                if (contractorsGrid) {
+                    contractorsGrid.style.display = 'flex';
+                }
+                
+                if (topMatches) {
+                    topMatches.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-danger">
+                                Error finding matches. Please try again later.
                             </div>
                         </div>
                     `;
                 }
                 
-                // Show the matches container
-                topMatchesContainer.classList.remove('d-none');
-                topMatchesContainer.classList.add('fade-in');
+                if (topMatchesContainer) {
+                    topMatchesContainer.classList.remove('d-none');
+                    topMatchesContainer.style.display = 'block';
+                    
+                }
+            });
+        });
+    }
 
-                // Add the following code to force visibility with inline styles:
-                topMatchesContainer.style.display = 'block';
-                topMatchesContainer.style.visibility = 'visible';
-                topMatchesContainer.style.opacity = '1';
-
-                console.log('AI Match Response:', data);
+    // Load more functionality
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            const currentPage = parseInt(this.getAttribute('data-current-page'));
+            const lastPage = parseInt(this.getAttribute('data-last-page'));
+            const nextPage = currentPage + 1;
+            
+            if (nextPage > lastPage) {
+                return;
+            }
+            
+            const spinner = this.querySelector('.spinner-border');
+            const buttonText = this.querySelector('span');
+            spinner.classList.remove('d-none');
+            buttonText.textContent = 'Loading...';
+            this.disabled = true;
+            
+            fetch(`{{ route('marketplace.index') }}?page=${nextPage}&_=${new Date().getTime()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                console.log("Received response for page:", nextPage);
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                
+                const newCards = tempDiv.querySelectorAll('.row.g-4 > .col-lg-4');
+                console.log("Found new cards:", newCards.length);
+                
+                
+                const contractorsGrid = document.querySelector('.row.g-4');
+                
+                
+                const fragment = document.createDocumentFragment();
+                
+                
+                newCards.forEach(card => {
+                    const newCardContainer = document.createElement('div');
+                    newCardContainer.className = 'col-lg-4 col-md-6 fade-in-card';
+                    newCardContainer.innerHTML = card.innerHTML;
+                    fragment.appendChild(newCardContainer);
+                });
+                
+                
+                contractorsGrid.appendChild(fragment);
+                
+                loadMoreBtn.setAttribute('data-current-page', nextPage);
+                
+                if (nextPage >= lastPage) {
+                    loadMoreBtn.classList.add('d-none');
+                }
+                
+                // Reset button state
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Load More Contractors';
+                loadMoreBtn.disabled = false;
             })
             .catch(error => {
-                console.error('Error:', error);
-                needsModal.hide();
-                findMatchesBtn.innerHTML = 'Find Matches';
-                findMatchesBtn.disabled = false;
-                
-                // Make sure the contractors grid is visible on error
-                contractorsGrid.style.display = 'flex';
-                
-                // Show error message
-                topMatches.innerHTML = `
-                    <div class="col-12">
-                        <div class="alert alert-danger">
-                            Error finding matches. Please try again later.
-                        </div>
-                    </div>
-                `;
-                topMatchesContainer.classList.remove('d-none');
+                console.error('Error loading more contractors:', error);
+                // Reset button state on error
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Try Again';
+                loadMoreBtn.disabled = false;
             });
         });
     }
@@ -346,14 +464,19 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .contractor-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border-left: 4px solid #0d6efd;   
+    border-right: 2px solid #dee2e6;  
+    border-top: 2px solid #dee2e6;    
+    border-bottom: 3px solid #6c757d; 
+    border-radius: 6px;               
+    transition: all 0.3s ease;        
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
 }
 
 .contractor-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-left: 4px solid #0a58ca;   
+    box-shadow: 0 10px 15px rgba(0,0,0,0.1); 
 }
 
 .contractor-avatar img {
@@ -457,7 +580,6 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-left: 0.5rem;
 }
 
-/* Match card styles */
 .match-card {
     position: relative;
     border: 2px solid #0d6efd;
@@ -489,7 +611,6 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.9rem;
 }
 
-/* Animation for showing matches */
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
@@ -517,6 +638,120 @@ document.addEventListener('DOMContentLoaded', function() {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+}
+
+
+.contractor-card.featured {
+    border-left: 4px solid #ffc107;   
+}
+
+.fade-in-card {
+    animation: fadeInUp 0.6s ease forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#load-more-btn {
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+#load-more-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#load-more-btn:active {
+    transform: translateY(0);
+}
+
+#load-more-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+
+.top-matches-container.fade-in {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin-bottom: 30px;
+}
+
+.match-card {
+    border: 2px solid #0d6efd;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.2);
+}
+
+.match-score-badge {
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.ribbon-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
+}
+
+.ribbon {
+    position: absolute;
+    z-index: 1;
+    width: 150px;
+    padding: 10px 0;
+    background-color: #ff6b6b;
+    color: white;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    transform: rotate(45deg);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+.ribbon-top-right {
+    top: 25px;
+    right: -40px;
+    transform: rotate(45deg);
+}
+
+.highlight-box {
+    background-color: #fffde7;
+    border-left: 4px solid #ffc107;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.ai-powered-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #4285f4, #34a853);
+    color: white;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    z-index: 2;
+}
+
+.ai-powered-badge i {
+    margin-right: 4px;
 }
 </style>
 @endsection 

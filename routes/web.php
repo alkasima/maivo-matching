@@ -7,6 +7,9 @@ use App\Http\Controllers\JobController;
 use App\Http\Controllers\MarketPlaceController;
 use App\Http\Controllers\ContractorController;
 
+
+
+
 Route::get('/', function () {
     return view('owner.register');
 });

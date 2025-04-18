@@ -46,7 +46,9 @@
                     <div class="job-item mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="mb-0">Station Maintenance #2469</h6>
-                            <span class="progress-badge">In Progress</span>
+                            <span class="status-badge status-in-progress">
+                                In Progress
+                            </span>
                         </div>
                         <div class="text-muted mb-2">Posted 2 days ago</div>
                         <div class="d-flex align-items-center">
@@ -60,7 +62,9 @@
                     <div class="job-item">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="mb-0">Charging Port Repair #2469</h6>
-                            <span class="progress-badge">In Progress</span>
+                            <span class="status-badge status-pending">
+                                Pending
+                            </span>
                         </div>
                         <div class="text-muted mb-2">Posted 2 days ago</div>
                         <div class="d-flex align-items-center">
@@ -89,13 +93,45 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Post New Job</h5>
+                    <a href="{{route('job.create')}}">
                     <button class="btn btn-primary w-100 py-2 mb-3">
                         <i class="bi bi-plus-lg me-2"></i>Create Job Request
                     </button>
+                    </a>
                     <p class="text-muted small">Quick post a new job request for your EV station.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.status-badge {
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 700;
+    border-radius: 0.25rem;
+    text-transform: capitalize;
+}
+
+.status-in-progress {
+    background-color: #ffc107; 
+    color: #212529;
+}
+
+.status-completed {
+    background-color: #198754; 
+    color: white;
+}
+
+.status-rejected {
+    background-color: #dc3545; 
+    color: white;
+}
+
+.status-pending {
+    background-color: #fd7e14; 
+    color: white;
+}
+</style>
 @endsection

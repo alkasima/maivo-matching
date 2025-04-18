@@ -1,4 +1,4 @@
-@include('layout.header')
+@include('layouts.header')
 <main>
     <h1 class="page-title">Join MAIVO Network</h1>
     <p class="page-subtitle">Connect with qualified service providers and streamline your EV charging infrastructure
@@ -100,6 +100,10 @@
 
             <button type="submit" class="submit-btn">Create Account</button>
         </form>
+        
+        <div class="auth-links mt-3 text-center">
+            <p>Already have an account? <a href="{{ route('user.login') }}" class="login-link">Login here</a></p>
+        </div>
     </div>
 </main>
-@include('layout.footer')
+@include('layouts.footer')

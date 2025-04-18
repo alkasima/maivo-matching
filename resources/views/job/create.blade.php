@@ -428,6 +428,10 @@
                 </div>
             </div>
 
+            <!-- Add these hidden fields to store coordinates -->
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+
             <div class="text-end mb-4">
                 <button type="submit" class="btn btn-primary">Create Job Posting</button>
             </div>
@@ -456,6 +460,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB_YOUR_REAL_KEY_HERE&libraries=places"></script>
 <script>
 function getJobDescription() {
     const spinner = document.getElementById('loadingSpinner');
@@ -913,6 +918,65 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Handle the search button click
+    const searchAddressBtn = document.getElementById('searchAddress');
+    if (searchAddressBtn) {
+        searchAddressBtn.addEventListener('click', function() {
+            const addressInput = document.getElementById('installation_address');
+            const latitudeInput = document.getElementById('latitude');
+            const longitudeInput = document.getElementById('longitude');
+            
+            if (!addressInput.value) {
+                alert("Please enter an address to search");
+                return;
+            }
+            
+            // Show spinner
+            const searchSpinner = document.getElementById('searchSpinner');
+            const searchButtonText = document.getElementById('searchButtonText');
+            if (searchSpinner) searchSpinner.classList.remove('d-none');
+            if (searchButtonText) searchButtonText.textContent = 'Searching...';
+            
+            // Use Geocoding API to get coordinates
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ 'address': addressInput.value }, function(results, status) {
+                // Hide spinner
+                if (searchSpinner) searchSpinner.classList.add('d-none');
+                if (searchButtonText) searchButtonText.textContent = 'Search';
+                
+                if (status === 'OK' && results[0]) {
+                    const location = results[0].geometry.location;
+                    
+                    // Update form fields
+                    latitudeInput.value = location.lat();
+                    longitudeInput.value = location.lng();
+                    
+                    // Trigger validation
+                    latitudeInput.dispatchEvent(new Event('input'));
+                    longitudeInput.dispatchEvent(new Event('input'));
+                    
+                    // Update map if available
+                    if (typeof map !== 'undefined') {
+                        const newLatLng = [location.lat(), location.lng()];
+                        
+                        if (typeof marker !== 'undefined') {
+                            marker.setLatLng(newLatLng);
+                        } else {
+                            marker = L.marker(newLatLng).addTo(map);
+                        }
+                        
+                        map.setView(newLatLng, 15);
+                    }
+                    
+                    // Update the address field with formatted address
+                    addressInput.value = results[0].formatted_address;
+                } else {
+                    alert('Could not find coordinates for this address. Please try a different address.');
+                }
+            });
+        });
+    }
 });
 </script>
 
@@ -951,6 +1015,36 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Smooth scrolling for the entire page */
 html {
     scroll-behavior: smooth;
+}
+
+/* Improve the appearance of Google Places autocomplete */
+.pac-container {
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    font-family: inherit;
+    z-index: 10000; /* Make sure it displays above other elements */
+}
+
+.pac-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    border-top: 1px solid #e6e6e6;
+}
+
+.pac-item:hover {
+    background-color: #f5f5f5;
+}
+
+.pac-item-query {
+    font-size: 14px;
+    color: #333;
+}
+
+/* If your form is in a modal, ensure z-index is higher */
+.modal {
+    z-index: 9000;
 }
 </style>
 @endsection

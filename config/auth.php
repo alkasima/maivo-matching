@@ -24,11 +24,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
-        'owner' => [ // Correct: Now in 'guards'
+        'owner' => [
             'driver' => 'session',
             'provider' => 'owners',
         ],
-        'contractor' => [ // Correct: Now in 'guards'
+        'contractor' => [
             'driver' => 'session',
             'provider' => 'contractors',
         ],

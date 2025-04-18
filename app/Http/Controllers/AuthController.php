@@ -35,7 +35,7 @@ class AuthController extends Controller
             'business_type' => $request->business_type,
         ]);
 
-        return redirect()->back()->with('success', 'Registration successful!');
+        return redirect()->route('user.login')->with('success', 'Registration successful! Please login with your new account.');
     }
 
     public function loginForm()
@@ -47,31 +47,44 @@ class AuthController extends Controller
     public function loginUser(Request $request)
     {
         $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-            'account_type' => 'required|string|in:owner,service',
+            'email' => 'required|email',
+            'password' => 'required',
         ]);
-
-        $accountType = $request->input('account_type');
-
-        if ($accountType == 'owner') {
-            $user = Owner::where('email', $request->email)->first();
-        } else {
-            $user = Contractor::where('email', $request->email)->first();
+        
+        // Debug: Check if user exists in the database
+        $ownerExists = Owner::where('email', $request->email)->exists();
+        $contractorExists = Contractor::where('email', $request->email)->exists();
+        
+        \Log::info("Login attempt for {$request->email}. Owner exists: " . ($ownerExists ? 'Yes' : 'No') . 
+                   ", Contractor exists: " . ($contractorExists ? 'Yes' : 'No'));
+        
+        // Get account type or try both if not specified
+        $accountType = $request->input('account_type', null);
+        
+        // Try owner login if account_type is owner or not specified
+        if ($accountType === 'owner' || $accountType === null) {
+            if (Auth::guard('owner')->attempt([
+                'email' => $request->email,
+                'password' => $request->password
+            ], $request->filled('remember'))) {
+                $request->session()->regenerate();
+                return redirect()->intended(route('owner.dashboard'));
+            }
         }
-
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages(['email' => 'Invalid credentials']);
+        
+        // Try contractor login if account_type is service or not specified
+        if ($accountType === 'service' || $accountType === null) {
+            if (Auth::guard('contractor')->attempt([
+                'email' => $request->email,
+                'password' => $request->password
+            ], $request->filled('remember'))) {
+                $request->session()->regenerate();
+                return redirect()->intended(route('contractor.dashboard'));
+            }
         }
-
-        if ($accountType == 'owner') {
-            Auth::guard('owner')->login($user);
-            return redirect()->intended('/owner/dashboard');
-        } else {
-            Auth::guard('contractor')->login($user);
-            return redirect()->intended('/provider/dashboard');
-        }
+        
+        // If reach here, authentication failed
+        return back()->with('error', 'Invalid login credentials. Please try again.');
     }
     public function register(Request $request)
     {
